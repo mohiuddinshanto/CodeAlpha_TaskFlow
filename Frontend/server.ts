@@ -12,6 +12,7 @@ import { dashboardRouter } from './server/routes/dashboard';
 import { toNodeHandler } from 'better-auth/node';
 import { auth, connectAuthMongo } from './src/lib/auth';
 import { rateLimit } from './server/rateLimit';
+import { attachRealtime, broadcastDataChanged, closeRealtime } from './server/realtime';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -42,7 +43,10 @@ app.use((req, res, next) => {
   const sendJson = res.json.bind(res);
   res.json = ((body: unknown) => {
     if (req.method === 'GET' || req.method === 'HEAD') return sendJson(body);
-    void flushMongoWrites().then(() => sendJson(body)).catch((error: unknown) => {
+    void flushMongoWrites().then(() => {
+      if (res.statusCode < 400) broadcastDataChanged();
+      sendJson(body);
+    }).catch((error: unknown) => {
       console.error('[Database] Mutation failed:', error instanceof Error ? error.message : 'unknown error');
       res.status(500);
       sendJson({ error: 'The database could not save this change.' });
@@ -104,12 +108,14 @@ async function startServer() {
   httpServer = app.listen(PORT, '0.0.0.0', () => {
     console.log(`TaskFlow Server running on http://0.0.0.0:${PORT}`);
   });
+  attachRealtime(httpServer);
 }
 
 async function shutdown(signal: string) {
   console.log(`[Server] ${signal} received; closing gracefully.`);
   try {
     await flushMongoWrites();
+    await closeRealtime();
     if (httpServer) await new Promise<void>((resolve, reject) => httpServer!.close((error) => error ? reject(error) : resolve()));
     await closeMongo();
     process.exit(0);

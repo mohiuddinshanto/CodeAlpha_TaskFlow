@@ -25,6 +25,50 @@ export default function App() {
   } = useStore();
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const currentUserId = useStore((state) => state.currentUser?.id);
+
+  // Keep this user's views in sync with successful changes made by collaborators.
+  useEffect(() => {
+    if (!currentUserId) return;
+    let socket: WebSocket | undefined;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let stopped = false;
+    let retryDelay = 1000;
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    const connect = () => {
+      if (stopped) return;
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      socket = new WebSocket(`${protocol}//${window.location.host}/api/realtime`);
+      socket.onopen = () => { retryDelay = 1000; };
+      socket.onmessage = (event) => {
+        try {
+          if (JSON.parse(event.data).type !== 'data_changed') return;
+        } catch { return; }
+        if (refreshTimer) clearTimeout(refreshTimer);
+        refreshTimer = setTimeout(() => {
+          const state = useStore.getState();
+          void state.fetchProjects();
+          void state.fetchNotifications();
+          void state.fetchDashboardStats();
+          if (state.activeProjectId) void state.fetchTasks(state.activeProjectId);
+          if (state.selectedTaskId) void state.fetchComments(state.selectedTaskId);
+        }, 120);
+      };
+      socket.onclose = () => {
+        if (stopped) return;
+        retryTimer = setTimeout(connect, retryDelay);
+        retryDelay = Math.min(retryDelay * 2, 30000);
+      };
+      socket.onerror = () => socket?.close();
+    };
+    connect();
+    return () => {
+      stopped = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      if (refreshTimer) clearTimeout(refreshTimer);
+      socket?.close();
+    };
+  }, [currentUserId]);
 
   // Sync theme class with document element
   useEffect(() => {
