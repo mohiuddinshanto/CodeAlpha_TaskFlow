@@ -1593,47 +1593,6 @@ function rateLimit(maxAttempts = 10, windowMs = 15 * 60 * 1e3) {
   };
 }
 
-// server/realtime.ts
-import { WebSocket, WebSocketServer } from "ws";
-import { fromNodeHeaders as fromNodeHeaders3 } from "better-auth/node";
-var clients = /* @__PURE__ */ new Set();
-var webSocketServer;
-function attachRealtime(server) {
-  webSocketServer = new WebSocketServer({ noServer: true, maxPayload: 1024 });
-  server.on("upgrade", (request, socket, head) => {
-    const url = new URL(request.url || "/", "http://localhost");
-    if (url.pathname !== "/api/realtime") {
-      socket.destroy();
-      return;
-    }
-    void auth.api.getSession({ headers: fromNodeHeaders3(request.headers) }).then((session) => {
-      if (!session?.user) {
-        socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
-        socket.destroy();
-        return;
-      }
-      webSocketServer?.handleUpgrade(request, socket, head, (ws) => {
-        const client2 = { userId: session.user.id, socket: ws };
-        clients.add(client2);
-        ws.send(JSON.stringify({ type: "connected" }));
-        ws.on("close", () => clients.delete(client2));
-        ws.on("error", () => clients.delete(client2));
-      });
-    }).catch(() => socket.destroy());
-  });
-}
-function broadcastDataChanged() {
-  const message = JSON.stringify({ type: "data_changed", at: (/* @__PURE__ */ new Date()).toISOString() });
-  for (const client2 of clients) {
-    if (client2.socket.readyState === WebSocket.OPEN) client2.socket.send(message);
-  }
-}
-function closeRealtime() {
-  for (const client2 of clients) client2.socket.close(1001, "Server shutting down");
-  clients.clear();
-  return new Promise((resolve) => webSocketServer ? webSocketServer.close(() => resolve()) : resolve());
-}
-
 // server.ts
 var app = express();
 var PORT = Number(process.env.PORT) || 3e3;
@@ -1656,10 +1615,7 @@ app.use((req, res, next) => {
   const sendJson = res.json.bind(res);
   res.json = ((body) => {
     if (req.method === "GET" || req.method === "HEAD") return sendJson(body);
-    void flushMongoWrites().then(() => {
-      if (res.statusCode < 400) broadcastDataChanged();
-      sendJson(body);
-    }).catch((error) => {
+    void flushMongoWrites().then(() => sendJson(body)).catch((error) => {
       console.error("[Database] Mutation failed:", error instanceof Error ? error.message : "unknown error");
       res.status(500);
       sendJson({ error: "The database could not save this change." });
@@ -1711,13 +1667,11 @@ async function startServer() {
   httpServer = app.listen(PORT, "0.0.0.0", () => {
     console.log(`TaskFlow Server running on http://0.0.0.0:${PORT}`);
   });
-  attachRealtime(httpServer);
 }
 async function shutdown(signal) {
   console.log(`[Server] ${signal} received; closing gracefully.`);
   try {
     await flushMongoWrites();
-    await closeRealtime();
     if (httpServer) await new Promise((resolve, reject) => httpServer.close((error) => error ? reject(error) : resolve()));
     await closeMongo();
     process.exit(0);
