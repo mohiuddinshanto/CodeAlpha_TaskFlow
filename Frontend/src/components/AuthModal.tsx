@@ -21,6 +21,20 @@ export const AuthModal: React.FC = () => {
     setIsSubmitting(false);
   };
 
+  const handleDemoLogin = async () => {
+    setIsSubmitting(true);
+    try {
+      const response = await fetch('/api/demo/prepare', { method: 'POST' });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Demo login is unavailable');
+      await login(result.email, result.password);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Demo login is unavailable');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
@@ -123,6 +137,17 @@ export const AuthModal: React.FC = () => {
               <span>{isSubmitting ? 'Signing in...' : 'Sign In'}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
+            <button
+              type="button"
+              onClick={handleDemoLogin}
+              disabled={isSubmitting}
+              className="w-full py-2 px-4 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300 font-semibold rounded-lg transition-colors disabled:opacity-60"
+            >
+              {isSubmitting ? 'Preparing demo workspace...' : 'Explore with Demo Account'}
+            </button>
+            <p className="text-center text-[11px] text-slate-500 dark:text-slate-400">
+              Includes sample projects, tasks, team members, comments, and notifications.
+            </p>
           </form>
         ) : (
           <form onSubmit={handleRegisterSubmit} className="space-y-3.5 text-xs">

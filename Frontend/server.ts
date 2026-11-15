@@ -9,6 +9,7 @@ import { tasksRouter } from './server/routes/tasks';
 import { commentsRouter } from './server/routes/comments';
 import { notificationsRouter } from './server/routes/notifications';
 import { dashboardRouter } from './server/routes/dashboard';
+import { demoRouter } from './server/routes/demo';
 import { toNodeHandler } from 'better-auth/node';
 import { auth, connectAuthMongo } from './src/lib/auth';
 import { rateLimit } from './server/rateLimit';
@@ -37,6 +38,7 @@ app.all('/api/auth/*', (req, res, next) => {
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use('/api/demo', demoRouter);
 
 // Complete MongoDB writes before reporting a successful API mutation.
 app.use((req, res, next) => {
