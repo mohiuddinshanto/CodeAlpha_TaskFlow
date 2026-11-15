@@ -4,5 +4,10 @@
   "buildCommand": "npm run build",
   "redirects": [
     { "source": "/", "destination": "/index.html", "permanent": true }
-  ]
+  ],
+  "functions": {
+    "server.js": {
+      "includeFiles": "public/**"
+    }
+  }
 }
