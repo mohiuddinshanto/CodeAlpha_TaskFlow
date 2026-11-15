@@ -4,7 +4,7 @@ import { useStore } from '../store/useStore';
 import toast from 'react-hot-toast';
 
 export const AuthModal: React.FC = () => {
-  const { isAuthModalOpen, setAuthModalOpen, login, register } = useStore();
+  const { isAuthModalOpen, setAuthModalOpen, login, loginDemo, register } = useStore();
 
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
@@ -23,23 +23,8 @@ export const AuthModal: React.FC = () => {
 
   const handleDemoLogin = async () => {
     setIsSubmitting(true);
-    try {
-      const response = await fetch('/api/demo/prepare', { method: 'POST' });
-      const responseText = await response.text();
-      let result: { email?: string; password?: string; error?: string };
-      try {
-        result = JSON.parse(responseText);
-      } catch {
-        throw new Error(`Demo API returned an unexpected response (HTTP ${response.status}). Redeploy the latest backend changes and check Vercel routing.`);
-      }
-      if (!response.ok) throw new Error(result.error || 'Demo login is unavailable');
-      if (!result.email || !result.password) throw new Error('Demo API response is missing login details.');
-      await login(result.email, result.password);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Demo login is unavailable');
-    } finally {
-      setIsSubmitting(false);
-    }
+    await loginDemo();
+    setIsSubmitting(false);
   };
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {

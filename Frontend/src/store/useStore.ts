@@ -50,6 +50,7 @@ interface TaskFlowState {
   isAuthenticated: boolean;
   isLoadingAuth: boolean;
   login: (email: string, password: string) => Promise<boolean>;
+  loginDemo: () => Promise<boolean>;
   register: (data: { name: string; email: string; password: string; role?: string; jobTitle?: string }) => Promise<boolean>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
@@ -200,6 +201,25 @@ export const useStore = create<TaskFlowState>((set, get) => ({
       return true;
     } catch (err: unknown) {
       toast.error(errorMessage(err, 'Login failed'));
+      return false;
+    }
+  },
+
+  loginDemo: async () => {
+    try {
+      const response = await fetch('/api/demo/prepare', { method: 'POST' });
+      const responseText = await response.text();
+      let result: { email?: string; password?: string; error?: string };
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        throw new Error(`Demo API returned an unexpected response (HTTP ${response.status}). Redeploy the latest backend changes and check Vercel routing.`);
+      }
+      if (!response.ok) throw new Error(result.error || 'Demo login is unavailable');
+      if (!result.email || !result.password) throw new Error('Demo API response is missing login details.');
+      return await get().login(result.email, result.password);
+    } catch (err: unknown) {
+      toast.error(errorMessage(err, 'Demo login is unavailable'));
       return false;
     }
   },
