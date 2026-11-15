@@ -91,10 +91,10 @@ app.get('/api/health', (_req, res) => {
 });
 
 if (isProd) {
-  const publicPath = path.resolve(process.cwd(), 'public');
-  app.use(express.static(publicPath));
+  const distPath = path.resolve(process.cwd(), 'dist');
+  app.use(express.static(distPath));
   app.get('*', (_req, res) => {
-    res.sendFile(path.join(publicPath, 'index.html'));
+    res.sendFile(path.join(distPath, 'index.html'));
   });
 }
 
