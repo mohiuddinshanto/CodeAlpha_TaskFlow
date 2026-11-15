@@ -25,8 +25,15 @@ export const AuthModal: React.FC = () => {
     setIsSubmitting(true);
     try {
       const response = await fetch('/api/demo/prepare', { method: 'POST' });
-      const result = await response.json();
+      const responseText = await response.text();
+      let result: { email?: string; password?: string; error?: string };
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        throw new Error(`Demo API returned an unexpected response (HTTP ${response.status}). Redeploy the latest backend changes and check Vercel routing.`);
+      }
       if (!response.ok) throw new Error(result.error || 'Demo login is unavailable');
+      if (!result.email || !result.password) throw new Error('Demo API response is missing login details.');
       await login(result.email, result.password);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Demo login is unavailable');

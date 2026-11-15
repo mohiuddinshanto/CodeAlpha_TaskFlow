@@ -9,6 +9,9 @@ const configDirectory = dirname(fileURLToPath(import.meta.url));
 export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
+    // Vercel serves static assets from public/ alongside the Express function.
+    publicDir: false as const,
+    build: { outDir: 'public', emptyOutDir: true },
     resolve: {
       alias: {
         '@': resolve(configDirectory, '.'),

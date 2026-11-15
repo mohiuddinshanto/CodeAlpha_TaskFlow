@@ -16,8 +16,27 @@ import { rateLimit } from './server/rateLimit';
 import { attachRealtime, broadcastDataChanged, closeRealtime } from './server/realtime';
 
 const app = express();
+export default app;
 const PORT = Number(process.env.PORT) || 3000;
 const isProd = process.env.NODE_ENV === 'production';
+
+let databaseInitialization: Promise<void> | null = null;
+async function initializeDatabase(): Promise<void> {
+  databaseInitialization ??= (async () => {
+    await initDatabase();
+    await connectAuthMongo();
+  })();
+  return databaseInitialization;
+}
+
+// Vercel invokes the exported Express app as a function. Initialize MongoDB
+// before any auth or API route handles the request.
+app.use((_req, res, next) => {
+  void initializeDatabase().then(next).catch((error: unknown) => {
+    console.error('[Database] Startup failed:', error instanceof Error ? error.message : 'unknown error');
+    res.status(503).json({ error: 'The application database is unavailable.' });
+  });
+});
 
 // Apply rate limiting to auth sign-in and sign-up routes (before Better Auth handler).
 // 10 attempts per 15 minutes per IP per path.
@@ -71,11 +90,18 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
+if (isProd) {
+  const publicPath = path.resolve(process.cwd(), 'public');
+  app.use(express.static(publicPath));
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(publicPath, 'index.html'));
+  });
+}
+
 let httpServer: ReturnType<typeof app.listen> | undefined;
 async function startServer() {
   // Finish loading persistent data before accepting API traffic.
-  await initDatabase();
-  await connectAuthMongo();
+  await initializeDatabase();
   if (!isProd) {
     // In development: mount Vite dev server as middleware
     const { createServer } = await import('vite');
@@ -84,13 +110,6 @@ async function startServer() {
       appType: 'spa',
     });
     app.use(vite.middlewares);
-  } else {
-    // In production: serve static build files
-    const distPath = path.resolve(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
   }
 
   app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
@@ -130,9 +149,11 @@ async function shutdown(signal: string) {
 process.once('SIGINT', () => { void shutdown('SIGINT'); });
 process.once('SIGTERM', () => { void shutdown('SIGTERM'); });
 
-startServer().catch((err) => {
-  const message = err instanceof Error ? err.message : 'Unknown startup error.';
-  console.error('Failed to start server:', message);
-  void closeMongo();
-  process.exit(1);
-});
+if (process.env.VERCEL !== '1') {
+  startServer().catch((err) => {
+    const message = err instanceof Error ? err.message : 'Unknown startup error.';
+    console.error('Failed to start server:', message);
+    void closeMongo();
+    process.exit(1);
+  });
+}
