@@ -1568,6 +1568,100 @@ dashboardRouter.get("/stats", authenticate, (req, res) => {
   res.json(stats);
 });
 
+// server/routes/demo.ts
+import { Router as Router7 } from "express";
+
+// server/demo.ts
+import { randomBytes as randomBytes2 } from "node:crypto";
+var DEMO_EMAIL = "demo@taskflow.app";
+var DEMO_PASSWORD = "TaskFlowDemo2026!";
+var preparing = null;
+function prepareDemoWorkspace() {
+  preparing ??= createDemoWorkspace().finally(() => {
+    preparing = null;
+  });
+  return preparing;
+}
+async function createDemoWorkspace() {
+  if (!database.getUserByEmail(DEMO_EMAIL)) {
+    try {
+      await auth.api.signUpEmail({
+        body: { name: "TaskFlow Demo", email: DEMO_EMAIL, password: DEMO_PASSWORD },
+        headers: new Headers({ origin: process.env.BETTER_AUTH_URL || "http://localhost:3000" })
+      });
+    } catch {
+    }
+  }
+  const demo = database.getUserByEmail(DEMO_EMAIL);
+  if (!demo) throw new Error("Demo account could not be initialized.");
+  if (demo.role !== "admin") database.updateUser(demo.id, { role: "admin" });
+  if (database.getProjectById("demo-product-launch")) return;
+  const now = /* @__PURE__ */ new Date();
+  const iso = (days) => new Date(now.getTime() + days * 864e5).toISOString();
+  const team = [
+    { id: "demo-user-ava", name: "Ava Chen", email: "ava.demo@taskflow.app", role: "member", jobTitle: "Product Designer", department: "Design", createdAt: iso(-30), updatedAt: iso(-2) },
+    { id: "demo-user-omar", name: "Omar Ali", email: "omar.demo@taskflow.app", role: "member", jobTitle: "Frontend Engineer", department: "Engineering", createdAt: iso(-25), updatedAt: iso(-1) },
+    { id: "demo-user-mia", name: "Mia Patel", email: "mia.demo@taskflow.app", role: "member", jobTitle: "QA Engineer", department: "Quality", createdAt: iso(-20), updatedAt: iso(-3) }
+  ];
+  for (const user of team) {
+    if (!database.getUserById(user.id)) await database.createUser({ ...user, passwordHash: randomBytes2(32).toString("hex") });
+  }
+  const projectId = "demo-product-launch";
+  const project = {
+    id: projectId,
+    name: "Product Launch",
+    description: "A sample workspace to explore projects, task tracking, team collaboration, and notifications.",
+    ownerId: demo.id,
+    members: [{ userId: demo.id, role: "owner", joinedAt: iso(-14) }, { userId: team[0].id, role: "admin", joinedAt: iso(-12) }, { userId: team[1].id, role: "member", joinedAt: iso(-10) }, { userId: team[2].id, role: "member", joinedAt: iso(-8) }],
+    status: "active",
+    startDate: iso(-14),
+    dueDate: iso(20),
+    color: "#6366F1",
+    category: "Product",
+    createdAt: iso(-14),
+    updatedAt: iso(-1)
+  };
+  database.createProject(project);
+  const taskRows = [
+    { title: "Map the onboarding journey", description: "Review the current signup flow and document the key user steps.", status: "completed", priority: "medium", assignedTo: team[0].id, labels: ["research", "ux"], dueDate: iso(-5), estimatedHours: 5 },
+    { title: "Design the dashboard overview", description: "Create responsive dashboard layouts for desktop and mobile.", status: "in_progress", priority: "high", assignedTo: team[0].id, labels: ["design", "dashboard"], dueDate: iso(3), estimatedHours: 8 },
+    { title: "Build project creation flow", description: "Implement the project form with validation and member selection.", status: "review", priority: "urgent", assignedTo: team[1].id, labels: ["frontend", "projects"], dueDate: iso(1), estimatedHours: 6 },
+    { title: "Add task filters", description: "Support filtering by status, priority, assignee, and due date.", status: "todo", priority: "high", assignedTo: team[1].id, labels: ["frontend", "tasks"], dueDate: iso(7), estimatedHours: 4 },
+    { title: "Run cross-browser checks", description: "Verify the main workflows in current desktop browsers.", status: "todo", priority: "low", assignedTo: team[2].id, labels: ["qa"], dueDate: iso(12), estimatedHours: 3 },
+    { title: "Resolve overdue sample task", description: "This intentionally overdue item demonstrates dashboard and due-date indicators.", status: "in_progress", priority: "urgent", assignedTo: demo.id, labels: ["demo", "urgent"], dueDate: iso(-2), estimatedHours: 2 }
+  ];
+  const tasks = taskRows.map((row, index) => ({ ...row, id: `demo-task-${index + 1}`, projectId, createdBy: demo.id, order: index, startDate: iso(-7 + index), createdAt: iso(-10 + index), updatedAt: iso(-1) }));
+  for (const task of tasks) database.createTask(task, demo.id);
+  const comments = [
+    { taskId: tasks[1].id, authorId: team[0].id, content: "The first dashboard draft is ready for review." },
+    { taskId: tasks[2].id, authorId: demo.id, content: "Thanks! Please include the empty state before merging." },
+    { taskId: tasks[3].id, authorId: team[1].id, content: "I will add the due-date filter alongside the status filters." }
+  ];
+  comments.forEach((comment) => database.createComment(comment));
+  const notifications = [
+    { recipientId: demo.id, type: "comment_added", message: "Ava Chen commented on \u201CDesign the dashboard overview\u201D", relatedProjectId: projectId, relatedTaskId: tasks[1].id },
+    { recipientId: demo.id, type: "deadline_approaching", message: "\u201CBuild project creation flow\u201D is due soon", relatedProjectId: projectId, relatedTaskId: tasks[2].id }
+  ];
+  notifications.forEach((notification) => database.createNotification(notification));
+  const activities = [
+    { userId: team[0].id, projectId, taskId: tasks[1].id, action: "updated_task", details: "Updated \u201CDesign the dashboard overview\u201D" },
+    { userId: team[1].id, projectId, taskId: tasks[2].id, action: "status_changed", details: "Moved \u201CBuild project creation flow\u201D to review" }
+  ];
+  activities.forEach((activity) => database.logActivity(activity));
+  await flushMongoWrites();
+}
+
+// server/routes/demo.ts
+var demoRouter = Router7();
+demoRouter.post("/prepare", async (_req, res) => {
+  try {
+    await prepareDemoWorkspace();
+    res.json({ email: DEMO_EMAIL, password: DEMO_PASSWORD });
+  } catch {
+    res.status(503).json({ error: "Demo login is temporarily unavailable. Please try again." });
+  }
+});
+
 // server.ts
 import { toNodeHandler } from "better-auth/node";
 
@@ -1593,10 +1687,65 @@ function rateLimit(maxAttempts = 10, windowMs = 15 * 60 * 1e3) {
   };
 }
 
+// server/realtime.ts
+import { WebSocket, WebSocketServer } from "ws";
+import { fromNodeHeaders as fromNodeHeaders3 } from "better-auth/node";
+var clients = /* @__PURE__ */ new Set();
+var webSocketServer;
+function attachRealtime(server) {
+  webSocketServer = new WebSocketServer({ noServer: true, maxPayload: 1024 });
+  server.on("upgrade", (request, socket, head) => {
+    const url = new URL(request.url || "/", "http://localhost");
+    if (url.pathname !== "/api/realtime") {
+      return;
+    }
+    void auth.api.getSession({ headers: fromNodeHeaders3(request.headers) }).then((session) => {
+      if (!session?.user) {
+        socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
+        socket.destroy();
+        return;
+      }
+      webSocketServer?.handleUpgrade(request, socket, head, (ws) => {
+        const client2 = { userId: session.user.id, socket: ws };
+        clients.add(client2);
+        ws.send(JSON.stringify({ type: "connected" }));
+        ws.on("close", () => clients.delete(client2));
+        ws.on("error", () => clients.delete(client2));
+      });
+    }).catch(() => socket.destroy());
+  });
+}
+function broadcastDataChanged() {
+  const message = JSON.stringify({ type: "data_changed", at: (/* @__PURE__ */ new Date()).toISOString() });
+  for (const client2 of clients) {
+    if (client2.socket.readyState === WebSocket.OPEN) client2.socket.send(message);
+  }
+}
+function closeRealtime() {
+  for (const client2 of clients) client2.socket.close(1001, "Server shutting down");
+  clients.clear();
+  return new Promise((resolve) => webSocketServer ? webSocketServer.close(() => resolve()) : resolve());
+}
+
 // server.ts
 var app = express();
+var server_default = app;
 var PORT = Number(process.env.PORT) || 3e3;
 var isProd = process.env.NODE_ENV === "production";
+var databaseInitialization = null;
+async function initializeDatabase() {
+  databaseInitialization ??= (async () => {
+    await initDatabase();
+    await connectAuthMongo();
+  })();
+  return databaseInitialization;
+}
+app.use((_req, res, next) => {
+  void initializeDatabase().then(next).catch((error) => {
+    console.error("[Database] Startup failed:", error instanceof Error ? error.message : "unknown error");
+    res.status(503).json({ error: "The application database is unavailable." });
+  });
+});
 var authRateLimit = rateLimit(10, 15 * 60 * 1e3);
 app.all("/api/auth/sign-in/*", authRateLimit);
 app.all("/api/auth/sign-up/*", authRateLimit);
@@ -1611,11 +1760,15 @@ app.all("/api/auth/*", (req, res, next) => {
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use("/api/demo", demoRouter);
 app.use((req, res, next) => {
   const sendJson = res.json.bind(res);
   res.json = ((body) => {
     if (req.method === "GET" || req.method === "HEAD") return sendJson(body);
-    void flushMongoWrites().then(() => sendJson(body)).catch((error) => {
+    void flushMongoWrites().then(() => {
+      if (res.statusCode < 400) broadcastDataChanged();
+      sendJson(body);
+    }).catch((error) => {
       console.error("[Database] Mutation failed:", error instanceof Error ? error.message : "unknown error");
       res.status(500);
       sendJson({ error: "The database could not save this change." });
@@ -1633,10 +1786,16 @@ app.use("/api/dashboard", dashboardRouter);
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", time: (/* @__PURE__ */ new Date()).toISOString() });
 });
+if (isProd) {
+  const distPath = path.resolve(process.cwd(), "dist");
+  app.use(express.static(distPath));
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(distPath, "index.html"));
+  });
+}
 var httpServer;
 async function startServer() {
-  await initDatabase();
-  await connectAuthMongo();
+  await initializeDatabase();
   if (!isProd) {
     const { createServer } = await import("vite");
     const vite = await createServer({
@@ -1644,12 +1803,6 @@ async function startServer() {
       appType: "spa"
     });
     app.use(vite.middlewares);
-  } else {
-    const distPath = path.resolve(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (_req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
   }
   app.use((err, _req, res, _next) => {
     if (res.headersSent) return;
@@ -1667,11 +1820,13 @@ async function startServer() {
   httpServer = app.listen(PORT, "0.0.0.0", () => {
     console.log(`TaskFlow Server running on http://0.0.0.0:${PORT}`);
   });
+  attachRealtime(httpServer);
 }
 async function shutdown(signal) {
   console.log(`[Server] ${signal} received; closing gracefully.`);
   try {
     await flushMongoWrites();
+    await closeRealtime();
     if (httpServer) await new Promise((resolve, reject) => httpServer.close((error) => error ? reject(error) : resolve()));
     await closeMongo();
     process.exit(0);
@@ -1686,9 +1841,14 @@ process.once("SIGINT", () => {
 process.once("SIGTERM", () => {
   void shutdown("SIGTERM");
 });
-startServer().catch((err) => {
-  const message = err instanceof Error ? err.message : "Unknown startup error.";
-  console.error("Failed to start server:", message);
-  void closeMongo();
-  process.exit(1);
-});
+if (process.env.VERCEL !== "1") {
+  startServer().catch((err) => {
+    const message = err instanceof Error ? err.message : "Unknown startup error.";
+    console.error("Failed to start server:", message);
+    void closeMongo();
+    process.exit(1);
+  });
+}
+export {
+  server_default as default
+};

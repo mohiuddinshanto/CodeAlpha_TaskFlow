@@ -100,17 +100,21 @@ export const NewProjectModal: React.FC = () => {
               <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Category
               </label>
-              <select
+              <input
+                type="text"
+                list="project-category-options"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
+                placeholder="e.g. Product Development"
                 className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-slate-100 focus:outline-hidden"
-              >
-                <option value="Product Development">Product Development</option>
-                <option value="Mobile UX">Mobile UX</option>
-                <option value="Engineering & Architecture">Engineering &amp; Architecture</option>
-                <option value="Security & Compliance">Security &amp; Compliance</option>
-                <option value="Growth & Marketing">Growth &amp; Marketing</option>
-              </select>
+              />
+              <datalist id="project-category-options">
+                <option value="Product Development" />
+                <option value="Mobile UX" />
+                <option value="Engineering & Architecture" />
+                <option value="Security & Compliance" />
+                <option value="Growth & Marketing" />
+              </datalist>
             </div>
 
             <div>
