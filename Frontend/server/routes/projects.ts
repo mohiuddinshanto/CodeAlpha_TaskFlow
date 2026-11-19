@@ -163,8 +163,8 @@ projectsRouter.patch('/:id', authenticate, (req: AuthenticatedRequest, res: Resp
   }
 
   // Only owner or admin can edit project details
-  if (user.role !== 'admin' && project.ownerId !== user.id) {
-    res.status(403).json({ error: 'Only the project owner or an administrator can update this project.' });
+  if (!canManageProjectMembers(project, user)) {
+    res.status(403).json({ error: 'Only the project owner, a project Admin, or a platform administrator can update this project.' });
     return;
   }
 

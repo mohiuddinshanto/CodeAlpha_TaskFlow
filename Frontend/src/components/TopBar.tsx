@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { Avatar } from './Avatar';
+import { canManageProject } from '../utils/projectAccess';
 
 interface TopBarProps {
   onOpenMobileSidebar: () => void;
@@ -114,13 +115,13 @@ export const TopBar: React.FC<TopBarProps> = ({ onOpenMobileSidebar }) => {
 
       {/* Zone 3: Actions & Notifications & User Switcher */}
       <div className="flex items-center gap-2.5 shrink-0">
-        <button
+        {canManageProject(activeProject, currentUser) && <button
           onClick={() => setNewTaskModalOpen(true)}
           className="hidden lg:flex items-center gap-1.5 py-1.5 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg shadow-xs transition-colors whitespace-nowrap"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>New Task</span>
-        </button>
+        </button>}
 
         {/* Notifications Popover */}
         <div className="relative" ref={notifRef}>

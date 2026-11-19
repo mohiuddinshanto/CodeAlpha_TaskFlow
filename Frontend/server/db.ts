@@ -409,10 +409,10 @@ export const database = {
     }
     return db.comments[index];
   },
-  deleteComment: (id: string, userId: string, isAdmin: boolean) => {
+  deleteComment: (id: string, userId: string) => {
     const comment = db.comments.find((c) => c.id === id);
     if (!comment) return false;
-    if (comment.authorId !== userId && !isAdmin) return false;
+    if (comment.authorId !== userId) return false;
     db.comments = db.comments.filter((c) => c.id !== id);
     if (isMongoConnected && mongoDb) {
       persistMongoWrite(mongoDb.collection('comments').deleteOne({ id }));

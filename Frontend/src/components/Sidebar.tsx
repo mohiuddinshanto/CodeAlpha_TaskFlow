@@ -19,6 +19,7 @@ import {
 import { useStore, ActiveView } from '../store/useStore';
 import { Avatar } from './Avatar';
 import type { LucideIcon } from 'lucide-react';
+import { canManageProject } from '../utils/projectAccess';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -98,7 +99,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
         </div>
 
         {/* Quick Action Button */}
-        <div className="p-4 shrink-0">
+        {canManageProject(projects.find((project) => project.id === activeProjectId) || projects[0], currentUser) && <div className="p-4 shrink-0">
           <button
             onClick={() => {
               setNewTaskModalOpen(true);
@@ -109,7 +110,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onCloseMobile }) => {
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>New Task</span>
           </button>
-        </div>
+        </div>}
 
         {/* Workspace Project Selector */}
         {projects.length > 0 && (

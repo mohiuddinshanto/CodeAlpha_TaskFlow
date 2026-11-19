@@ -64,19 +64,19 @@ test('project role access and membership management matrix', () => {
   assert.equal(canRemoveProjectMember(project, admin, admin.id), false);
 });
 
-test('project Admin can manage task fields but Owner alone controls project and role changes', () => {
+test('project Admin and Owner can manage tasks, while ordinary members cannot delete them', () => {
   assert.equal(canManageTask(project, admin), true);
   assert.equal(canEditTask(project, task, admin), true);
-  assert.equal(canDeleteTask(project, task, admin), false);
+  assert.equal(canDeleteTask(project, task, admin), true);
   assert.equal(canDeleteTask(project, task, owner), true);
-  assert.equal(canDeleteTask(project, task, member), true);
+  assert.equal(canDeleteTask(project, task, member), false);
   assert.equal(canDeleteTask(project, task, platformAdmin), true);
 });
 
-test('plain project members cannot submit full-edit task fields', () => {
+test('plain project members cannot submit task edits, status changes, or reorders', () => {
   assert.deepEqual(getForbiddenTaskEditFields({ priority: 'urgent' }, false), ['priority']);
-  assert.deepEqual(getForbiddenTaskEditFields({ status: 'review', order: 2 }, false), []);
-  assert.deepEqual(getForbiddenTaskEditFields({ title: 'change', status: 'review' }, false), ['title']);
+  assert.deepEqual(getForbiddenTaskEditFields({ status: 'review', order: 2 }, false), ['status', 'order']);
+  assert.deepEqual(getForbiddenTaskEditFields({ title: 'change', status: 'review' }, false), ['title', 'status']);
   assert.deepEqual(getForbiddenTaskEditFields({ priority: 'urgent' }, true), []);
 });
 

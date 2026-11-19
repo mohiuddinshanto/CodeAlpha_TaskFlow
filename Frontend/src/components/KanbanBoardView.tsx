@@ -15,6 +15,7 @@ import { TaskPriority, TaskStatus } from '../types/index';
 import type { LucideIcon } from 'lucide-react';
 import { Avatar } from './Avatar';
 import { groupTasksByStatus, isTaskOverdue } from '../utils/taskCalculations';
+import { canManageProject } from '../utils/projectAccess';
 
 const COLUMNS: { id: TaskStatus; label: string; icon: LucideIcon; color: string; border: string }[] = [
   { id: 'todo', label: 'To Do', icon: Circle, color: 'text-slate-500', border: 'border-slate-300 dark:border-slate-700' },
@@ -32,6 +33,7 @@ export const KanbanBoardView: React.FC = () => {
     openTaskModal,
     setNewTaskModalOpen,
     allUsers,
+    currentUser,
   } = useStore();
 
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
@@ -41,6 +43,7 @@ export const KanbanBoardView: React.FC = () => {
   const [assigneeFilter] = useState<string>('all');
 
   const activeProject = projects.find((p) => p.id === activeProjectId) || projects[0];
+  const canManage = canManageProject(activeProject, currentUser);
 
   // Filter tasks for active project
   let projectTasks = tasks.filter((t) => t.projectId === (activeProject?.id || ''));
@@ -106,7 +109,7 @@ export const KanbanBoardView: React.FC = () => {
     e.preventDefault();
     setDragOverColumn(null);
     const taskId = e.dataTransfer.getData('text/plain') || draggedTaskId;
-    if (!taskId) return;
+    if (!taskId || !canManage) return;
 
     const task = tasks.find((t) => t.id === taskId);
     if (task && task.status !== targetStatus) {
@@ -151,13 +154,13 @@ export const KanbanBoardView: React.FC = () => {
               })}
             </div>
 
-            <button
+            {canManage && <button
               onClick={() => setNewTaskModalOpen(true)}
               className="py-1.5 px-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg shadow-xs flex items-center gap-1.5 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Task</span>
-            </button>
+            </button>}
           </div>
         </div>
 
@@ -232,14 +235,14 @@ export const KanbanBoardView: React.FC = () => {
                     </span>
                   </div>
 
-                  <button
+                  {canManage && <button
                     onClick={() => setNewTaskModalOpen(true)}
                     title={`Add task to ${col.label}`}
                     aria-label={`Add task to ${col.label}`}
                     className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800 rounded transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                  </button>
+                  </button>}
                 </div>
 
                 {/* Cards List */}
@@ -257,11 +260,11 @@ export const KanbanBoardView: React.FC = () => {
                       return (
                         <div
                           key={task.id}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, task.id)}
+                          draggable={canManage}
+                          onDragStart={(e) => { if (canManage) handleDragStart(e, task.id); }}
                           onDragEnd={handleDragEnd}
                           onClick={() => openTaskModal(task.id)}
-                          className={`p-3 bg-white dark:bg-slate-850 rounded-lg border border-slate-200 dark:border-slate-800 shadow-2xs hover:shadow-xs hover:border-blue-400 dark:hover:border-blue-600 transition-all cursor-grab active:cursor-grabbing group ${
+                          className={`p-3 bg-white dark:bg-slate-850 rounded-lg border border-slate-200 dark:border-slate-800 shadow-2xs hover:shadow-xs hover:border-blue-400 dark:hover:border-blue-600 transition-all ${canManage ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'} group ${
                             isBeingDragged ? 'opacity-40 scale-95' : 'opacity-100'
                           }`}
                         >
@@ -339,6 +342,7 @@ export const KanbanBoardView: React.FC = () => {
                           >
                             <span className="text-[10px] text-slate-400">Move:</span>
                             <select
+                              disabled={!canManage}
                               value={task.status}
                               onChange={(e) => moveTask(task.id, e.target.value as TaskStatus)}
                               className="text-[10px] bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-1.5 py-0.5"
@@ -357,13 +361,13 @@ export const KanbanBoardView: React.FC = () => {
 
                 {/* Quick Add Card at column bottom */}
                 <div className="p-2 border-t border-slate-200/60 dark:border-slate-800/80 shrink-0">
-                  <button
+                  {canManage && <button
                     onClick={() => setNewTaskModalOpen(true)}
                     className="w-full py-1.5 px-2 text-xs font-medium text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800/60 rounded flex items-center justify-center gap-1 transition-colors"
                   >
                     <Plus className="w-3 h-3" />
                     <span>New Task</span>
-                  </button>
+                  </button>}
                 </div>
               </div>
             );

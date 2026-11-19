@@ -12,6 +12,7 @@ import { useStore } from '../store/useStore';
 import { Avatar } from './Avatar';
 import { calculateProjectProgress } from '../utils/taskCalculations';
 import { Project } from '../types';
+import { canManageProject } from '../utils/projectAccess';
 
 export const ProjectsView: React.FC = () => {
   const {
@@ -106,8 +107,9 @@ export const ProjectsView: React.FC = () => {
           const projectTasks = tasks.filter((t) => t.projectId === proj.id);
           const progress = calculateProjectProgress(projectTasks);
           const completedCount = projectTasks.filter((t) => t.status === 'completed').length;
-          const canManage = currentUser?.role === 'admin' || proj.ownerId === currentUser?.id;
-          const canAddMembers = canManage || proj.members.some((member) => member.userId === currentUser?.id && member.role === 'admin');
+          const canManage = canManageProject(proj, currentUser);
+          const canDeleteProject = currentUser?.role === 'admin' || proj.ownerId === currentUser?.id;
+          const canAddMembers = canManage;
 
           return (
             <div
@@ -132,7 +134,7 @@ export const ProjectsView: React.FC = () => {
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                     )}
-                    {canManage && (
+                    {canDeleteProject && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();

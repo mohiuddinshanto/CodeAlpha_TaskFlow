@@ -3,6 +3,7 @@ import { X, Plus } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { TaskPriority, TaskStatus } from '../types/index';
 import toast from 'react-hot-toast';
+import { canManageProject } from '../utils/projectAccess';
 
 export const NewTaskModal: React.FC = () => {
   const {
@@ -10,6 +11,7 @@ export const NewTaskModal: React.FC = () => {
     setNewTaskModalOpen,
     projects,
     activeProjectId,
+    currentUser,
     allUsers,
     createTask,
   } = useStore();
@@ -24,7 +26,7 @@ export const NewTaskModal: React.FC = () => {
   const [labelsStr, setLabelsStr] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (!isNewTaskModalOpen) return null;
+  if (!isNewTaskModalOpen || !canManageProject(projects.find((project) => project.id === projectId), currentUser)) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

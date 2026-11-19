@@ -13,6 +13,7 @@ import {
 import { useStore } from '../store/useStore';
 import { Avatar } from './Avatar';
 import { calculateProjectProgress, isTaskOverdue } from '../utils/taskCalculations';
+import { canManageProject } from '../utils/projectAccess';
 
 export const DashboardView: React.FC = () => {
   const {
@@ -27,6 +28,7 @@ export const DashboardView: React.FC = () => {
     tasks,
     openTaskModal,
     allUsers,
+    activeProjectId,
   } = useStore();
 
   useEffect(() => {
@@ -55,6 +57,8 @@ export const DashboardView: React.FC = () => {
     const found = allUsers.find((u) => u.id === userId);
     return found ? found.name : 'Team Member';
   };
+  const activeProject = projects.find((project) => project.id === activeProjectId) || projects[0];
+  const canCreateTask = canManageProject(activeProject, currentUser);
 
   const getPriorityStyle = (priority: string) => {
     switch (priority) {
@@ -90,13 +94,13 @@ export const DashboardView: React.FC = () => {
             <FolderKanban className="w-3.5 h-3.5" />
             <span>New Project</span>
           </button>
-          <button
+          {canCreateTask && <button
             onClick={() => setNewTaskModalOpen(true)}
             className="py-2 px-3.5 bg-blue-600 hover:bg-blue-700 text-xs font-medium text-white rounded-lg shadow-xs transition-colors flex items-center gap-1.5"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Create Task</span>
-          </button>
+          </button>}
         </div>
       </div>
 

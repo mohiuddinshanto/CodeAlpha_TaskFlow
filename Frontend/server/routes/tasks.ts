@@ -3,7 +3,7 @@ import { database } from '../db';
 import { authenticate, AuthenticatedRequest } from '../auth';
 import { Task, TaskFilterOptions, TaskPriority, TaskStatus } from '../../src/types/index';
 import { filterAndSortTasks, isValidDateOnly } from '../../src/utils/taskCalculations';
-import { canDeleteTask, canEditTask, getForbiddenTaskEditFields, hasProjectAccess } from '../projectPermissions';
+import { canDeleteTask, canEditTask, canManageTask, getForbiddenTaskEditFields, hasProjectAccess } from '../projectPermissions';
 
 export const tasksRouter = Router();
 
@@ -185,6 +185,11 @@ tasksRouter.post('/', authenticate, (req: AuthenticatedRequest, res: Response) =
     return;
   }
 
+  if (!canManageTask(project, user)) {
+    res.status(403).json({ error: 'Only project Owners, project Admins, or platform administrators can create tasks.' });
+    return;
+  }
+
   if (description !== undefined && typeof description !== 'string') {
     res.status(400).json({ error: 'Task description must be text.' });
     return;
@@ -283,7 +288,12 @@ tasksRouter.patch('/:id', authenticate, (req: AuthenticatedRequest, res: Respons
     return;
   }
 
-  // Members can change status, comments, or tasks assigned to them; owners and admins can update all fields
+  if (!canManageTask(project, user)) {
+    res.status(403).json({ error: 'Only project Owners, project Admins, or platform administrators can change tasks.' });
+    return;
+  }
+
+  // Project members may read tasks and comment; only project managers can change task fields.
   const canFullEdit = canEditTask(project, task, user);
 
   const forbiddenFields = getForbiddenTaskEditFields(req.body, canFullEdit);
@@ -408,7 +418,7 @@ tasksRouter.post('/batch-move', authenticate, (req: AuthenticatedRequest, res: R
     if (task) {
       const project = database.getProjectById(task.projectId);
       if (project) {
-        if (hasProjectAccess(project, user)) {
+        if (canManageTask(project, user)) {
           database.updateTask(
             move.id,
             {

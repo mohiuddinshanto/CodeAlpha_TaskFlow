@@ -15,6 +15,7 @@ import { Avatar } from './Avatar';
 import { isTaskOverdue } from '../utils/taskCalculations';
 import { api } from '../lib/api';
 import toast from 'react-hot-toast';
+import { canManageProject } from '../utils/projectAccess';
 
 export const TasksListView: React.FC = () => {
   const {
@@ -24,6 +25,8 @@ export const TasksListView: React.FC = () => {
     setNewTaskModalOpen,
     deleteTask,
     moveTask,
+    currentUser,
+    activeProjectId,
   } = useStore();
 
   const [search, setSearch] = useState('');
@@ -136,13 +139,13 @@ export const TasksListView: React.FC = () => {
           </p>
         </div>
 
-        <button
+        {canManageProject(projects.find((project) => project.id === activeProjectId) || projects[0], currentUser) && <button
           onClick={() => setNewTaskModalOpen(true)}
           className="py-2 px-3.5 bg-blue-600 hover:bg-blue-700 text-xs font-medium text-white rounded-lg shadow-xs transition-colors flex items-center gap-1.5 self-start sm:self-auto"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>New Task</span>
-        </button>
+        </button>}
       </div>
 
       {/* Filter and Search Bar */}
@@ -296,6 +299,7 @@ export const TasksListView: React.FC = () => {
                 filteredTasks.map((task) => {
                   const assignees = task.assigneeIds?.length ? task.assigneeIds.map(getUser).filter((user) => user) : task.assignedTo ? [getUser(task.assignedTo)].filter((user) => user) : [];
                   const project = getProject(task.projectId);
+                  const canManage = canManageProject(project, currentUser);
                   const isOverdue = isTaskOverdue(task);
 
                   return (
@@ -333,6 +337,7 @@ export const TasksListView: React.FC = () => {
                         <div className="flex items-center gap-1.5">
                           {getStatusIcon(task.status)}
                           <select
+                            disabled={!canManage}
                             value={task.status}
                             onChange={(e) => moveTask(task.id, e.target.value as TaskStatus)}
                             className="text-xs capitalize bg-transparent border-0 font-medium text-slate-700 dark:text-slate-300 cursor-pointer focus:ring-0 p-0"
@@ -391,13 +396,13 @@ export const TasksListView: React.FC = () => {
 
                       {/* Actions */}
                       <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                        <button
+                        {canManage && <button
                           onClick={() => deleteTask(task.id)}
                           title="Delete task"
                           className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded transition-colors"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        </button>}
                       </td>
                     </tr>
                   );

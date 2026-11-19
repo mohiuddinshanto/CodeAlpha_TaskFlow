@@ -58,10 +58,10 @@ export function canManageTask(project: Project, user: Pick<User, 'id' | 'role'>)
 
 export function canEditTask(
   project: Project,
-  task: Task,
+  _task: Task,
   user: Pick<User, 'id' | 'role'>,
 ): boolean {
-  return canManageTask(project, user) || task.createdBy === user.id || task.assignedTo === user.id || task.assigneeIds?.includes(user.id) === true;
+  return canManageTask(project, user);
 }
 
 const FULL_TASK_EDIT_FIELDS = new Set([
@@ -82,7 +82,7 @@ export function getForbiddenTaskEditFields(
   canFullEdit: boolean,
 ): string[] {
   if (canFullEdit) return [];
-  return Object.keys(updates).filter((field) => FULL_TASK_EDIT_FIELDS.has(field));
+  return Object.keys(updates).filter((field) => FULL_TASK_EDIT_FIELDS.has(field) || field === 'status' || field === 'order');
 }
 
 export function canDeleteTask(
@@ -90,5 +90,5 @@ export function canDeleteTask(
   task: Task,
   user: Pick<User, 'id' | 'role'>,
 ): boolean {
-  return user.role === 'admin' || project.ownerId === user.id || task.createdBy === user.id;
+  return canManageTask(project, user);
 }

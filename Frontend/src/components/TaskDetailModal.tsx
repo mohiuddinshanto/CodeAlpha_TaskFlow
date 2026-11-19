@@ -10,6 +10,7 @@ import { useStore } from '../store/useStore';
 import { TaskPriority, TaskStatus } from '../types/index';
 import { Avatar } from './Avatar';
 import toast from 'react-hot-toast';
+import { canManageProject } from '../utils/projectAccess';
 
 export const TaskDetailModal: React.FC = () => {
   const {
@@ -65,6 +66,7 @@ export const TaskDetailModal: React.FC = () => {
   if (!task) return null;
 
   const project = projects.find((p) => p.id === task.projectId);
+  const canManage = canManageProject(project, currentUser);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -132,13 +134,13 @@ export const TaskDetailModal: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-1.5">
-            <button
+            {canManage && <button
               onClick={handleDeleteTask}
               title="Delete task"
               className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-md transition-colors"
             >
               <Trash2 className="w-4 h-4" />
-            </button>
+            </button>}
             <button
               onClick={closeTaskModal}
               title="Close modal"
@@ -152,6 +154,7 @@ export const TaskDetailModal: React.FC = () => {
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <form id="task-edit-form" onSubmit={handleSave} className="space-y-4">
+            <fieldset disabled={!canManage} className="space-y-4 disabled:opacity-75">
             {/* Title */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
@@ -279,7 +282,7 @@ export const TaskDetailModal: React.FC = () => {
             </div>
 
             {/* Save Button */}
-            <div className="flex justify-end pt-2">
+            {canManage && <div className="flex justify-end pt-2">
               <button
                 type="submit"
                 disabled={isSaving}
@@ -288,7 +291,8 @@ export const TaskDetailModal: React.FC = () => {
                 <Save className="w-3.5 h-3.5" />
                 <span>{isSaving ? 'Saving...' : 'Save Task Changes'}</span>
               </button>
-            </div>
+            </div>}
+            </fieldset>
           </form>
 
           {/* Comments / Collaboration Section */}
@@ -328,8 +332,7 @@ export const TaskDetailModal: React.FC = () => {
               ) : (
                 comments.map((c) => {
                   const commentAuthor = allUsers.find((u) => u.id === c.authorId);
-                  const canDelete =
-                    currentUser?.role === 'admin' || currentUser?.id === c.authorId;
+                  const canDelete = currentUser?.id === c.authorId;
 
                   return (
                     <div

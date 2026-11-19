@@ -3,11 +3,19 @@ import { Mail, Briefcase, Plus } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { Avatar } from './Avatar';
 import toast from 'react-hot-toast';
+import { canManageProject } from '../utils/projectAccess';
 
 export const TeamView: React.FC = () => {
   const { allUsers, tasks, projects, currentUser, activeProjectId, addProjectMember } = useStore();
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
+  const activeProject = projects.find((project) => project.id === activeProjectId);
+  const visibleMemberIds = new Set(projects.flatMap((project) => [project.ownerId, ...project.members.map((member) => member.userId)]));
+  const visibleUsers = currentUser?.role === 'admin'
+    ? allUsers
+    : activeProject
+      ? allUsers.filter((member) => activeProject.ownerId === member.id || activeProject.members.some((projectMember) => projectMember.userId === member.id))
+      : allUsers.filter((member) => visibleMemberIds.has(member.id));
 
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +45,7 @@ export const TeamView: React.FC = () => {
           </p>
         </div>
 
-        {(currentUser?.role === 'admin' || projects.some((p) => p.id === activeProjectId && p.ownerId === currentUser?.id)) && activeProjectId && (
+        {canManageProject(projects.find((p) => p.id === activeProjectId), currentUser) && activeProjectId && (
           <button
             onClick={() => setIsInviteModalOpen(true)}
             className="py-2 px-3.5 bg-blue-600 hover:bg-blue-700 text-xs font-medium text-white rounded-lg shadow-xs transition-colors flex items-center gap-1.5 self-start sm:self-auto"
@@ -50,7 +58,7 @@ export const TeamView: React.FC = () => {
 
       {/* Team Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {allUsers.map((member) => {
+        {visibleUsers.map((member) => {
           const assignedTasks = tasks.filter((t) => t.assignedTo === member.id || t.assigneeIds?.includes(member.id) === true);
           const completedTasks = assignedTasks.filter((t) => t.status === 'completed').length;
           return (

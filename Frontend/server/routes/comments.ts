@@ -95,11 +95,9 @@ commentsRouter.patch('/:id', authenticate, (req: AuthenticatedRequest, res: Resp
 // DELETE /api/comments/:id
 commentsRouter.delete('/:id', authenticate, (req: AuthenticatedRequest, res: Response) => {
   const user = req.user!;
-  const isAdmin = user.role === 'admin';
-
-  const deleted = database.deleteComment(req.params.id, user.id, isAdmin);
+  const deleted = database.deleteComment(req.params.id, user.id);
   if (!deleted) {
-    res.status(403).json({ error: 'Forbidden: Only the comment author or an administrator can delete this comment.' });
+    res.status(403).json({ error: 'Forbidden: You can only delete your own comment.' });
     return;
   }
 
