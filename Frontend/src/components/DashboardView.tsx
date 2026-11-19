@@ -42,6 +42,7 @@ export const DashboardView: React.FC = () => {
     reviewTasks: tasks.filter((t) => t.status === 'review').length,
     overdueTasks: tasks.filter((task) => isTaskOverdue(task)).length,
     completionRate: tasks.length ? Math.round((tasks.filter((task) => task.status === 'completed').length / tasks.length) * 100) : 0,
+    projectProgress: {},
     recentProjects: projects.slice(0, 3),
     recentActivities: [],
     upcomingDeadlines: tasks.filter((t) => t.dueDate && t.status !== 'completed').slice(0, 4),
@@ -341,7 +342,7 @@ export const DashboardView: React.FC = () => {
           <div className="space-y-3">
             {projects.slice(0, 3).map((proj) => {
               const projectTasks = tasks.filter((t) => t.projectId === proj.id);
-              const progress = calculateProjectProgress(projectTasks);
+              const progress = stats.projectProgress[proj.id] ?? calculateProjectProgress(projectTasks);
               return (
                 <div
                   key={proj.id}

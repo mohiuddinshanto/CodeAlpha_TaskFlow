@@ -320,6 +320,9 @@ export const database = {
           relatedTaskId: id,
         });
       }
+      if (old.createdBy !== actorId && !old.assigneeIds?.includes(old.createdBy) && old.assignedTo !== old.createdBy) {
+        database.createNotification({ recipientId: old.createdBy, type: 'status_changed', message: `Task "${old.title}" moved to ${updates.status.replace('_', ' ')}`, relatedProjectId: old.projectId, relatedTaskId: id });
+      }
     }
 
     // Check assignee change
@@ -375,7 +378,7 @@ export const database = {
     db.comments.push(newComment);
 
     const task = db.tasks.find((t) => t.id === comment.taskId);
-    if (task) for (const assigneeId of new Set(task.assigneeIds?.length ? task.assigneeIds : task.assignedTo ? [task.assignedTo] : [])) {
+    if (task) for (const assigneeId of new Set([...(task.assigneeIds?.length ? task.assigneeIds : task.assignedTo ? [task.assignedTo] : []), task.createdBy])) {
       if (assigneeId === comment.authorId) continue;
       database.createNotification({
         recipientId: assigneeId,

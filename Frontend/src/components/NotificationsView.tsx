@@ -53,6 +53,10 @@ export const NotificationsView: React.FC = () => {
       await markNotificationRead(notif.id);
     }
     if (notif.relatedTaskId) {
+      if (notif.relatedProjectId) {
+        selectProject(notif.relatedProjectId);
+        setActiveView('board');
+      }
       openTaskModal(notif.relatedTaskId);
     } else if (notif.relatedProjectId) {
       selectProject(notif.relatedProjectId);

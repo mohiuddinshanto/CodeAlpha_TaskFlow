@@ -113,6 +113,7 @@ export interface DashboardStats {
   reviewTasks: number;
   overdueTasks: number;
   completionRate: number;
+  projectProgress: Record<string, number>;
   recentProjects: Project[];
   recentActivities: Activity[];
   upcomingDeadlines: Task[];

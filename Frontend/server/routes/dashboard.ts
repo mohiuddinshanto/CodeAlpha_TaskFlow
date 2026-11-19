@@ -39,6 +39,11 @@ dashboardRouter.get('/stats', authenticate, (req: AuthenticatedRequest, res: Res
   const overdueTasks = tasks.filter((t) => isTaskOverdue(t, now)).length;
 
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  const projectProgress = Object.fromEntries(accessibleProjects.map((project) => {
+    const projectTasks = tasks.filter((task) => task.projectId === project.id);
+    const completed = projectTasks.filter((task) => task.status === 'completed').length;
+    return [project.id, projectTasks.length ? Math.round((completed / projectTasks.length) * 100) : 0];
+  }));
 
   // Upcoming deadlines (within next 14 days, not completed)
   const upcomingDeadlines = tasks
@@ -79,6 +84,7 @@ dashboardRouter.get('/stats', authenticate, (req: AuthenticatedRequest, res: Res
     reviewTasks,
     overdueTasks,
     completionRate,
+    projectProgress,
     recentProjects,
     recentActivities,
     upcomingDeadlines,
