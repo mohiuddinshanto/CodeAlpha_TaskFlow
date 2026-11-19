@@ -53,6 +53,12 @@ function persistMongoWrite(write: Promise<unknown>) {
   void write.catch(() => {});
 }
 
+function getProjectRecipientIds(projectId: string): string[] {
+  const project = db.projects.find((entry) => entry.id === projectId);
+  if (!project) return [];
+  return [...new Set([project.ownerId, ...project.members.map((member) => member.userId)])];
+}
+
 export async function flushMongoWrites(): Promise<void> {
   while (pendingMongoWrites.length > 0) {
     const writes = pendingMongoWrites.splice(0);
@@ -280,12 +286,13 @@ export const database = {
       details: `Created task "${task.title}"`,
     });
     // Create notification if assigned
-    for (const assigneeId of new Set(task.assigneeIds?.length ? task.assigneeIds : task.assignedTo ? [task.assignedTo] : [])) {
-      if (assigneeId === actorId) continue;
+    const assigneeIds = new Set(task.assigneeIds?.length ? task.assigneeIds : task.assignedTo ? [task.assignedTo] : []);
+    if (assigneeIds.size > 0) for (const recipientId of getProjectRecipientIds(task.projectId)) {
+      if (recipientId === actorId) continue;
       database.createNotification({
-        recipientId: assigneeId,
+        recipientId,
         type: 'task_assigned',
-        message: `You were assigned to "${task.title}"`,
+        message: assigneeIds.has(recipientId) ? `You were assigned to "${task.title}"` : `A team member was assigned to "${task.title}"`,
         relatedProjectId: task.projectId,
         relatedTaskId: task.id,
       });
@@ -310,30 +317,28 @@ export const database = {
         action: 'status_changed',
         details: `Moved "${old.title}" from ${old.status} to ${updates.status}`,
       });
-      for (const assigneeId of new Set(old.assigneeIds?.length ? old.assigneeIds : old.assignedTo ? [old.assignedTo] : [])) {
-        if (assigneeId === actorId) continue;
+      for (const recipientId of getProjectRecipientIds(old.projectId)) {
+        if (recipientId === actorId) continue;
         database.createNotification({
-          recipientId: assigneeId,
+          recipientId,
           type: 'status_changed',
           message: `Task "${old.title}" moved to ${updates.status.replace('_', ' ')}`,
           relatedProjectId: old.projectId,
           relatedTaskId: id,
         });
       }
-      if (old.createdBy !== actorId && !old.assigneeIds?.includes(old.createdBy) && old.assignedTo !== old.createdBy) {
-        database.createNotification({ recipientId: old.createdBy, type: 'status_changed', message: `Task "${old.title}" moved to ${updates.status.replace('_', ' ')}`, relatedProjectId: old.projectId, relatedTaskId: id });
-      }
     }
 
     // Check assignee change
     const oldAssignees = new Set(old.assigneeIds?.length ? old.assigneeIds : old.assignedTo ? [old.assignedTo] : []);
     const newAssignees = updates.assigneeIds ?? (updates.assignedTo !== undefined ? (updates.assignedTo ? [updates.assignedTo] : []) : []);
-    for (const assigneeId of newAssignees) {
-      if (oldAssignees.has(assigneeId) || assigneeId === actorId) continue;
+    const newlyAssignedIds = new Set(newAssignees.filter((assigneeId) => !oldAssignees.has(assigneeId)));
+    if (newlyAssignedIds.size > 0) for (const recipientId of getProjectRecipientIds(old.projectId)) {
+      if (recipientId === actorId) continue;
       database.createNotification({
-        recipientId: assigneeId,
+        recipientId,
         type: 'task_assigned',
-        message: `You were assigned to "${old.title}"`,
+        message: newlyAssignedIds.has(recipientId) ? `You were assigned to "${old.title}"` : `A team member was assigned to "${old.title}"`,
         relatedProjectId: old.projectId,
         relatedTaskId: id,
       });
@@ -378,12 +383,12 @@ export const database = {
     db.comments.push(newComment);
 
     const task = db.tasks.find((t) => t.id === comment.taskId);
-    if (task) for (const assigneeId of new Set([...(task.assigneeIds?.length ? task.assigneeIds : task.assignedTo ? [task.assignedTo] : []), task.createdBy])) {
-      if (assigneeId === comment.authorId) continue;
+    if (task) for (const recipientId of getProjectRecipientIds(task.projectId)) {
+      if (recipientId === comment.authorId) continue;
       database.createNotification({
-        recipientId: assigneeId,
+        recipientId,
         type: 'comment_added',
-        message: `New comment on "${task.title}"`,
+        message: `A team member commented on "${task.title}"`,
         relatedProjectId: task.projectId,
         relatedTaskId: task.id,
       });
