@@ -51,6 +51,7 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   assignedTo?: string; // userId
+  assigneeIds?: string[]; // additional and current assignees; assignedTo remains for legacy records
   createdBy: string; // userId
   labels: string[];
   startDate?: string;

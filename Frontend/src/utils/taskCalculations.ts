@@ -136,7 +136,7 @@ export function filterAndSortTasks(tasks: Task[], options: TaskFilterOptions): T
 
   // Assignee filter
   if (options.assignedTo && options.assignedTo !== 'all') {
-    result = result.filter((t) => t.assignedTo === options.assignedTo);
+    result = result.filter((t) => t.assignedTo === options.assignedTo || t.assigneeIds?.includes(options.assignedTo!) === true);
   }
 
   if (options.dueDateFilter) {

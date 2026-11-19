@@ -61,7 +61,7 @@ export function canEditTask(
   task: Task,
   user: Pick<User, 'id' | 'role'>,
 ): boolean {
-  return canManageTask(project, user) || task.createdBy === user.id || task.assignedTo === user.id;
+  return canManageTask(project, user) || task.createdBy === user.id || task.assignedTo === user.id || task.assigneeIds?.includes(user.id) === true;
 }
 
 const FULL_TASK_EDIT_FIELDS = new Set([
@@ -69,6 +69,7 @@ const FULL_TASK_EDIT_FIELDS = new Set([
   'description',
   'priority',
   'assignedTo',
+  'assigneeIds',
   'labels',
   'startDate',
   'dueDate',

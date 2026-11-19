@@ -34,7 +34,7 @@ export const TaskDetailModal: React.FC = () => {
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<TaskStatus>('todo');
   const [priority, setPriority] = useState<TaskPriority>('medium');
-  const [assignedTo, setAssignedTo] = useState<string>('');
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [dueDate, setDueDate] = useState<string>('');
   const [labels, setLabels] = useState<string[]>([]);
   const [labelInput, setLabelInput] = useState('');
@@ -53,7 +53,7 @@ export const TaskDetailModal: React.FC = () => {
       setDescription(task.description || '');
       setStatus(task.status);
       setPriority(task.priority);
-      setAssignedTo(task.assignedTo || '');
+      setAssigneeIds(task.assigneeIds || (task.assignedTo ? [task.assignedTo] : []));
       setDueDate(task.dueDate ? task.dueDate.split('T')[0] : '');
       setLabels(task.labels || []);
       setEstimatedHours(task.estimatedHours ?? '');
@@ -78,7 +78,7 @@ export const TaskDetailModal: React.FC = () => {
       description,
       status,
       priority,
-      assignedTo: assignedTo || undefined,
+      assigneeIds,
       dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
       labels,
       estimatedHours: estimatedHours === '' ? undefined : Number(estimatedHours),
@@ -205,20 +205,17 @@ export const TaskDetailModal: React.FC = () => {
               {/* Assignee */}
               <div>
                 <label className="block font-medium text-slate-500 dark:text-slate-400 mb-1">
-                  Assignee
+                  Assignees
                 </label>
-                <select
-                  value={assignedTo}
-                  onChange={(e) => setAssignedTo(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-slate-100 font-medium focus:outline-hidden"
-                >
-                  <option value="">Unassigned</option>
-                  {allUsers.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name}
-                    </option>
+                <div className="max-h-28 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-2 space-y-1">
+                  {allUsers.filter((u) => project && (project.ownerId === u.id || project.members.some((member) => member.userId === u.id))).map((u) => (
+                    <label key={u.id} className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200">
+                      <input type="checkbox" checked={assigneeIds.includes(u.id)} onChange={() => setAssigneeIds(assigneeIds.includes(u.id) ? assigneeIds.filter((id) => id !== u.id) : [...assigneeIds, u.id])} />
+                      <span>{u.name}</span>
+                    </label>
                   ))}
-                </select>
+                  <span className="block text-[10px] text-slate-400">Leave unchecked to keep this task unassigned.</span>
+                </div>
               </div>
 
               {/* Due Date */}

@@ -438,7 +438,7 @@ export const DashboardView: React.FC = () => {
                         </span>
                       </div>
                       <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-2">
-                        <span>Assigned to: {getUserName(task.assignedTo)}</span>
+                        <span>Assigned to: {(task.assigneeIds?.length ? task.assigneeIds : task.assignedTo ? [task.assignedTo] : []).map(getUserName).join(', ') || 'Unassigned'}</span>
                       </div>
                     </div>
 

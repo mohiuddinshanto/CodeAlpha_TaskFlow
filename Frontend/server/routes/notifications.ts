@@ -14,7 +14,7 @@ notificationsRouter.get('/', authenticate, (req: AuthenticatedRequest, res: Resp
     .map((notification) => notification.relatedTaskId));
   for (const task of database.getTasks()) {
     const dueAt = task.dueDate ? Date.parse(task.dueDate) : NaN;
-    if (task.assignedTo === user.id && task.status !== 'completed' && Number.isFinite(dueAt) && dueAt >= now && dueAt <= now + 24 * 60 * 60 * 1000 && !existingDeadlineTasks.has(task.id)) {
+    if ((task.assignedTo === user.id || task.assigneeIds?.includes(user.id)) && task.status !== 'completed' && Number.isFinite(dueAt) && dueAt >= now && dueAt <= now + 24 * 60 * 60 * 1000 && !existingDeadlineTasks.has(task.id)) {
       database.createNotification({
         recipientId: user.id,
         type: 'deadline_approaching',

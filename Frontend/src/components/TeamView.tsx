@@ -51,7 +51,7 @@ export const TeamView: React.FC = () => {
       {/* Team Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {allUsers.map((member) => {
-          const assignedTasks = tasks.filter((t) => t.assignedTo === member.id);
+          const assignedTasks = tasks.filter((t) => t.assignedTo === member.id || t.assigneeIds?.includes(member.id) === true);
           const completedTasks = assignedTasks.filter((t) => t.status === 'completed').length;
           return (
             <div

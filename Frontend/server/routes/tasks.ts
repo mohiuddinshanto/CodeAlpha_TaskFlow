@@ -156,6 +156,7 @@ tasksRouter.post('/', authenticate, (req: AuthenticatedRequest, res: Response) =
     status,
     priority,
     assignedTo,
+    assigneeIds: rawAssigneeIds,
     labels,
     startDate,
     dueDate,
@@ -188,13 +189,15 @@ tasksRouter.post('/', authenticate, (req: AuthenticatedRequest, res: Response) =
     res.status(400).json({ error: 'Task description must be text.' });
     return;
   }
-  if (assignedTo) {
-    const assignee = database.getUserById(assignedTo);
-    const eligible = assignee && (user.role === 'admin' || assignee.id === project.ownerId || project.members.some((m) => m.userId === assignee.id));
-    if (!eligible) {
-      res.status(400).json({ error: 'Assignee must be an eligible member of this project.' });
-      return;
-    }
+  if (rawAssigneeIds !== undefined && (!Array.isArray(rawAssigneeIds) || rawAssigneeIds.some((id: unknown) => typeof id !== 'string'))) {
+    res.status(400).json({ error: 'Assignees must be a list of user IDs.' });
+    return;
+  }
+  const assignees = [...new Set<string>(rawAssigneeIds ?? (assignedTo ? [assignedTo] : []))];
+  const eligibleIds = new Set([project.ownerId, ...project.members.map((member) => member.userId)]);
+  if (assignees.some((id) => !database.getUserById(id) || (user.role !== 'admin' && !eligibleIds.has(id)))) {
+    res.status(400).json({ error: 'Assignees must be eligible members of this project.' });
+    return;
   }
   if (labels !== undefined && (!Array.isArray(labels) || labels.some((label: unknown) => typeof label !== 'string'))) {
     res.status(400).json({ error: 'Labels must be an array of text values.' });
@@ -242,7 +245,8 @@ tasksRouter.post('/', authenticate, (req: AuthenticatedRequest, res: Response) =
     description: description || '',
     status: taskStatus,
     priority: taskPriority,
-    assignedTo: assignedTo || undefined,
+    assignedTo: assignees[0],
+    assigneeIds: assignees,
     createdBy: user.id,
     labels: Array.isArray(labels) ? labels.map((l) => String(l).trim()) : [],
     startDate: startDate || now,
@@ -294,6 +298,7 @@ tasksRouter.patch('/:id', authenticate, (req: AuthenticatedRequest, res: Respons
     status,
     priority,
     assignedTo,
+    assigneeIds: rawAssigneeIds,
     labels,
     startDate,
     dueDate,
@@ -332,12 +337,14 @@ tasksRouter.patch('/:id', authenticate, (req: AuthenticatedRequest, res: Respons
     res.status(400).json({ error: 'Labels must be an array of text values.' });
     return;
   }
-  if (assignedTo !== undefined && assignedTo !== '') {
-    const assignee = database.getUserById(assignedTo);
-    if (!assignee || (user.role !== 'admin' && assignee.id !== project.ownerId && !project.members.some((m) => m.userId === assignee.id))) {
-      res.status(400).json({ error: 'Assignee must be an eligible member of this project.' });
-      return;
-    }
+  if (rawAssigneeIds !== undefined && (!Array.isArray(rawAssigneeIds) || rawAssigneeIds.some((id: unknown) => typeof id !== 'string'))) {
+    res.status(400).json({ error: 'Assignees must be a list of user IDs.' });
+    return;
+  }
+  const assignees = rawAssigneeIds !== undefined ? [...new Set<string>(rawAssigneeIds)] : assignedTo !== undefined ? (assignedTo ? [assignedTo] : []) : undefined;
+  if (assignees && assignees.some((id) => !database.getUserById(id) || (user.role !== 'admin' && id !== project.ownerId && !project.members.some((m) => m.userId === id)))) {
+    res.status(400).json({ error: 'Assignees must be eligible members of this project.' });
+    return;
   }
   if (order !== undefined && (!Number.isFinite(Number(order)) || Number(order) < 0)) {
     res.status(400).json({ error: 'Task order must be a non-negative number.' });
@@ -369,7 +376,10 @@ tasksRouter.patch('/:id', authenticate, (req: AuthenticatedRequest, res: Respons
     }
     if (description !== undefined) updates.description = description;
     if (priority !== undefined) updates.priority = priority;
-    if (assignedTo !== undefined) updates.assignedTo = assignedTo || undefined;
+    if (assignees !== undefined) {
+      updates.assignedTo = assignees[0];
+      updates.assigneeIds = assignees;
+    }
     if (labels !== undefined && Array.isArray(labels)) updates.labels = labels;
     if (startDate !== undefined) updates.startDate = startDate;
     if (dueDate !== undefined) updates.dueDate = dueDate ? new Date(dueDate).toISOString() : undefined;

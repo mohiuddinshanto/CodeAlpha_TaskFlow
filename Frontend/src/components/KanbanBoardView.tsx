@@ -59,7 +59,7 @@ export const KanbanBoardView: React.FC = () => {
     projectTasks = projectTasks.filter((t) => t.priority === priorityFilter);
   }
   if (assigneeFilter !== 'all') {
-    projectTasks = projectTasks.filter((t) => t.assignedTo === assigneeFilter);
+    projectTasks = projectTasks.filter((t) => t.assignedTo === assigneeFilter || t.assigneeIds?.includes(assigneeFilter) === true);
   }
 
   const groupedTasks = groupTasksByStatus(projectTasks);
@@ -250,7 +250,7 @@ export const KanbanBoardView: React.FC = () => {
                     </div>
                   ) : (
                     columnTasks.map((task) => {
-                      const assignee = getUser(task.assignedTo);
+                      const assignees = task.assigneeIds?.length ? task.assigneeIds : task.assignedTo ? [task.assignedTo] : [];
                       const isOverdue = isTaskOverdue(task);
                       const isBeingDragged = draggedTaskId === task.id;
 
@@ -328,13 +328,7 @@ export const KanbanBoardView: React.FC = () => {
                             </div>
 
                             <div className="flex items-center gap-2">
-                              {assignee && (
-                                <Avatar
-                                  name={assignee.name}
-                                  avatar={assignee.avatar}
-                                  size="xs"
-                                />
-                              )}
+                              {assignees.map((id) => getUser(id)).filter((user) => user).map((assignee) => <Avatar key={assignee!.id} name={assignee!.name} avatar={assignee!.avatar} size="xs" />)}
                             </div>
                           </div>
 

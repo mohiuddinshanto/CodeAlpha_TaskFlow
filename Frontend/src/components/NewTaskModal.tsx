@@ -18,7 +18,7 @@ export const NewTaskModal: React.FC = () => {
   const [projectId, setProjectId] = useState(activeProjectId || (projects[0]?.id || ''));
   const [status, setStatus] = useState<TaskStatus>('todo');
   const [priority, setPriority] = useState<TaskPriority>('medium');
-  const [assignedTo, setAssignedTo] = useState('');
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [dueDate, setDueDate] = useState('');
   const [description, setDescription] = useState('');
   const [labelsStr, setLabelsStr] = useState('');
@@ -48,7 +48,7 @@ export const NewTaskModal: React.FC = () => {
       projectId,
       status,
       priority,
-      assignedTo: assignedTo || undefined,
+      assigneeIds,
       dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
       description: description.trim(),
       labels,
@@ -59,6 +59,7 @@ export const NewTaskModal: React.FC = () => {
       setTitle('');
       setDescription('');
       setLabelsStr('');
+      setAssigneeIds([]);
       setNewTaskModalOpen(false);
     }
   };
@@ -100,7 +101,7 @@ export const NewTaskModal: React.FC = () => {
               </label>
               <select
                 value={projectId}
-                onChange={(e) => setProjectId(e.target.value)}
+                onChange={(e) => { setProjectId(e.target.value); setAssigneeIds([]); }}
                 required
                 className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-slate-100 focus:outline-hidden"
               >
@@ -147,21 +148,16 @@ export const NewTaskModal: React.FC = () => {
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Assignee
-              </label>
-              <select
-                value={assignedTo}
-                onChange={(e) => setAssignedTo(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-slate-100 focus:outline-hidden"
-              >
-                <option value="">Unassigned</option>
-                {allUsers.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                  </option>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Assignees</label>
+              <div className="max-h-24 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-2 space-y-1">
+                {allUsers.filter((user) => { const project = projects.find((item) => item.id === projectId); return project && (project.ownerId === user.id || project.members.some((member) => member.userId === user.id)); }).map((user) => (
+                  <label key={user.id} className="flex items-center gap-2 text-[11px] text-slate-700 dark:text-slate-200">
+                    <input type="checkbox" checked={assigneeIds.includes(user.id)} onChange={() => setAssigneeIds(assigneeIds.includes(user.id) ? assigneeIds.filter((id) => id !== user.id) : [...assigneeIds, user.id])} />
+                    <span className="truncate">{user.name}</span>
+                  </label>
                 ))}
-              </select>
+                {allUsers.filter((user) => { const project = projects.find((item) => item.id === projectId); return project && (project.ownerId === user.id || project.members.some((member) => member.userId === user.id)); }).length === 0 && <span className="text-[11px] text-slate-400">No project members available.</span>}
+              </div>
             </div>
 
             <div>

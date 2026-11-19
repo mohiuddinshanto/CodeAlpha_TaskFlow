@@ -294,7 +294,7 @@ export const TasksListView: React.FC = () => {
                 </tr>
               ) : (
                 filteredTasks.map((task) => {
-                  const assignee = getUser(task.assignedTo);
+                  const assignees = task.assigneeIds?.length ? task.assigneeIds.map(getUser).filter((user) => user) : task.assignedTo ? [getUser(task.assignedTo)].filter((user) => user) : [];
                   const project = getProject(task.projectId);
                   const isOverdue = isTaskOverdue(task);
 
@@ -358,12 +358,10 @@ export const TasksListView: React.FC = () => {
 
                       {/* Assignee */}
                       <td className="py-3 px-4">
-                        {assignee ? (
-                          <div className="flex items-center gap-2">
-                            <Avatar name={assignee.name} avatar={assignee.avatar} size="xs" />
-                            <span className="text-slate-700 dark:text-slate-300 truncate max-w-[120px]">
-                              {assignee.name}
-                            </span>
+                        {assignees.length > 0 ? (
+                          <div className="flex items-center gap-1.5" title={assignees.map((assignee) => assignee!.name).join(', ')}>
+                            <div className="flex -space-x-1"><>{assignees.map((assignee) => <Avatar key={assignee!.id} name={assignee!.name} avatar={assignee!.avatar} size="xs" />)}</></div>
+                            <span className="text-slate-700 dark:text-slate-300 truncate max-w-[120px]">{assignees.length === 1 ? assignees[0]!.name : `${assignees[0]!.name} +${assignees.length - 1}`}</span>
                           </div>
                         ) : (
                           <span className="text-slate-400 italic">Unassigned</span>

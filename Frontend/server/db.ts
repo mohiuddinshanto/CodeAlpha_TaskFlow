@@ -94,6 +94,7 @@ export async function connectMongo(): Promise<boolean> {
       await mongoDb.collection('projects').createIndex({ ownerId: 1 });
       await mongoDb.collection('tasks').createIndex({ projectId: 1, status: 1 });
       await mongoDb.collection('tasks').createIndex({ assignedTo: 1 });
+      await mongoDb.collection('tasks').createIndex({ assigneeIds: 1 });
       await mongoDb.collection('comments').createIndex({ taskId: 1 });
       await mongoDb.collection('notifications').createIndex({ recipientId: 1, isRead: 1 });
     } catch (idxErr) {
@@ -279,9 +280,10 @@ export const database = {
       details: `Created task "${task.title}"`,
     });
     // Create notification if assigned
-    if (task.assignedTo && task.assignedTo !== actorId) {
+    for (const assigneeId of new Set(task.assigneeIds?.length ? task.assigneeIds : task.assignedTo ? [task.assignedTo] : [])) {
+      if (assigneeId === actorId) continue;
       database.createNotification({
-        recipientId: task.assignedTo,
+        recipientId: assigneeId,
         type: 'task_assigned',
         message: `You were assigned to "${task.title}"`,
         relatedProjectId: task.projectId,
@@ -308,9 +310,10 @@ export const database = {
         action: 'status_changed',
         details: `Moved "${old.title}" from ${old.status} to ${updates.status}`,
       });
-      if (old.assignedTo && old.assignedTo !== actorId) {
+      for (const assigneeId of new Set(old.assigneeIds?.length ? old.assigneeIds : old.assignedTo ? [old.assignedTo] : [])) {
+        if (assigneeId === actorId) continue;
         database.createNotification({
-          recipientId: old.assignedTo,
+          recipientId: assigneeId,
           type: 'status_changed',
           message: `Task "${old.title}" moved to ${updates.status.replace('_', ' ')}`,
           relatedProjectId: old.projectId,
@@ -320,9 +323,12 @@ export const database = {
     }
 
     // Check assignee change
-    if (updates.assignedTo && updates.assignedTo !== old.assignedTo && updates.assignedTo !== actorId) {
+    const oldAssignees = new Set(old.assigneeIds?.length ? old.assigneeIds : old.assignedTo ? [old.assignedTo] : []);
+    const newAssignees = updates.assigneeIds ?? (updates.assignedTo !== undefined ? (updates.assignedTo ? [updates.assignedTo] : []) : []);
+    for (const assigneeId of newAssignees) {
+      if (oldAssignees.has(assigneeId) || assigneeId === actorId) continue;
       database.createNotification({
-        recipientId: updates.assignedTo,
+        recipientId: assigneeId,
         type: 'task_assigned',
         message: `You were assigned to "${old.title}"`,
         relatedProjectId: old.projectId,
@@ -369,9 +375,10 @@ export const database = {
     db.comments.push(newComment);
 
     const task = db.tasks.find((t) => t.id === comment.taskId);
-    if (task && task.assignedTo && task.assignedTo !== comment.authorId) {
+    if (task) for (const assigneeId of new Set(task.assigneeIds?.length ? task.assigneeIds : task.assignedTo ? [task.assignedTo] : [])) {
+      if (assigneeId === comment.authorId) continue;
       database.createNotification({
-        recipientId: task.assignedTo,
+        recipientId: assigneeId,
         type: 'comment_added',
         message: `New comment on "${task.title}"`,
         relatedProjectId: task.projectId,
