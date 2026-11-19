@@ -67,6 +67,9 @@ interface TaskFlowState {
   fetchProjects: () => Promise<void>;
   selectProject: (id: string | null) => void;
   createProject: (data: CreateProjectInput) => Promise<Project | null>;
+  projectCategories: string[];
+  fetchProjectCategories: () => Promise<void>;
+  saveProjectCategories: (categories: string[]) => Promise<boolean>;
   updateProject: (id: string, data: Partial<Project>) => Promise<boolean>;
   deleteProject: (id: string) => Promise<boolean>;
   addProjectMember: (projectId: string, userId: string) => Promise<boolean>;
@@ -280,6 +283,21 @@ export const useStore = create<TaskFlowState>((set, get) => ({
   },
 
   // Projects State
+  projectCategories: [],
+  fetchProjectCategories: async () => {
+    try { set({ projectCategories: await api.get<string[]>('/api/projects/categories') }); } catch {}
+  },
+  saveProjectCategories: async (categories) => {
+    try {
+      const saved = await api.put<string[]>('/api/projects/categories', { categories });
+      set({ projectCategories: saved });
+      toast.success('Project categories updated');
+      return true;
+    } catch (err: unknown) {
+      toast.error(errorMessage(err, 'Could not update project categories'));
+      return false;
+    }
+  },
   projects: [],
   activeProjectId: null,
   isLoadingProjects: false,

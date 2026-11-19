@@ -1,18 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, Plus, X } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { api } from '../lib/api';
 import { DatabaseStatus } from '../types/index';
 
 export const SettingsView: React.FC = () => {
-  const { theme, toggleTheme } = useStore();
+  const { theme, toggleTheme, currentUser, projectCategories, fetchProjectCategories, saveProjectCategories } = useStore();
   const [dbStatus, setDbStatus] = useState<DatabaseStatus | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [newCategory, setNewCategory] = useState('');
+  const [savingCategories, setSavingCategories] = useState(false);
 
   useEffect(() => {
     api.get<DatabaseStatus>('/api/dashboard/status')
       .then(setDbStatus)
       .catch(() => {});
   }, []);
+
+  useEffect(() => { void fetchProjectCategories(); }, [fetchProjectCategories]);
+  useEffect(() => { setCategories(projectCategories); }, [projectCategories]);
+
+  const addCategory = () => {
+    const value = newCategory.trim();
+    if (!value || categories.some((category) => category.toLowerCase() === value.toLowerCase())) return;
+    setCategories([...categories, value]);
+    setNewCategory('');
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-4xl mx-auto">
@@ -25,6 +38,23 @@ export const SettingsView: React.FC = () => {
           Configure appearance, theme preferences, and data maintenance.
         </p>
       </div>
+
+      {currentUser?.role === 'admin' && (
+        <section className="p-5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Project Categories</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Only administrators can add or remove categories available when creating projects.</p>
+          </div>
+          <div className="flex gap-2">
+            <input value={newCategory} maxLength={60} onChange={(event) => setNewCategory(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addCategory(); } }} placeholder="Add a category" className="flex-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-xs" />
+            <button type="button" onClick={addCategory} disabled={!newCategory.trim()} className="px-3 py-2 bg-blue-600 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center gap-1"><Plus className="w-3.5 h-3.5" />Add</button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {categories.map((category, index) => <span key={`${category}-${index}`} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 text-xs text-slate-700 dark:text-slate-200">{category}<button type="button" aria-label={`Remove ${category}`} onClick={() => setCategories(categories.filter((_, itemIndex) => itemIndex !== index))} className="text-slate-400 hover:text-red-500"><X className="w-3.5 h-3.5" /></button></span>)}
+          </div>
+          <button type="button" disabled={savingCategories || categories.length === 0} onClick={async () => { setSavingCategories(true); await saveProjectCategories(categories); setSavingCategories(false); }} className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-semibold rounded-lg">{savingCategories ? 'Saving...' : 'Save Categories'}</button>
+        </section>
+      )}
 
       {/* Theme Settings */}
       <div className="p-5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">

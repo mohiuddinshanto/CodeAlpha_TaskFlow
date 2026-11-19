@@ -1,4 +1,5 @@
 export type UserRole = 'admin' | 'project_owner' | 'member';
+export type ProjectCategory = string;
 
 export interface User {
   id: string;

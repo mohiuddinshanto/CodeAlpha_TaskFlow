@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Plus, FolderKanban } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { Avatar } from './Avatar';
@@ -11,12 +11,14 @@ export const NewProjectModal: React.FC = () => {
     allUsers,
     currentUser,
     createProject,
+    projectCategories,
+    fetchProjectCategories,
     setActiveView,
   } = useStore();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('Product Development');
+  const [category, setCategory] = useState('');
   const [startDate] = useState(new Date().toISOString().split('T')[0]);
   const [dueDate, setDueDate] = useState(
     new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0]
@@ -25,6 +27,11 @@ export const NewProjectModal: React.FC = () => {
     allUsers.filter((u) => u.id !== currentUser?.id).map((u) => u.id)
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => { void fetchProjectCategories(); }, [fetchProjectCategories]);
+  useEffect(() => {
+    if (!category && projectCategories.length > 0) setCategory(projectCategories[0]);
+  }, [category, projectCategories]);
 
   if (!isNewProjectModalOpen) return null;
 
@@ -100,21 +107,15 @@ export const NewProjectModal: React.FC = () => {
               <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Category
               </label>
-              <input
-                type="text"
-                list="project-category-options"
+              <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                placeholder="e.g. Product Development"
                 className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-slate-100 focus:outline-hidden"
-              />
-              <datalist id="project-category-options">
-                <option value="Product Development" />
-                <option value="Mobile UX" />
-                <option value="Engineering & Architecture" />
-                <option value="Security & Compliance" />
-                <option value="Growth & Marketing" />
-              </datalist>
+                required
+              >
+                <option value="" disabled>Select a category</option>
+                {projectCategories.map((option) => <option key={option} value={option}>{option}</option>)}
+              </select>
             </div>
 
             <div>

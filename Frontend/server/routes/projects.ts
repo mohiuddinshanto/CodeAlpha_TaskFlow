@@ -12,6 +12,27 @@ import {
 
 export const projectsRouter = Router();
 
+projectsRouter.get('/categories', authenticate, (_req: AuthenticatedRequest, res: Response) => {
+  res.json(database.getProjectCategories());
+});
+
+projectsRouter.put('/categories', authenticate, (req: AuthenticatedRequest, res: Response) => {
+  if (req.user!.role !== 'admin') {
+    res.status(403).json({ error: 'Only an administrator can manage project categories.' });
+    return;
+  }
+  if (!Array.isArray(req.body.categories) || req.body.categories.length > 100 || req.body.categories.some((value: unknown) => typeof value !== 'string' || value.trim().length === 0 || value.trim().length > 60)) {
+    res.status(400).json({ error: 'Categories must be a list of up to 100 names, each 1 to 60 characters long.' });
+    return;
+  }
+  const categories = [...new Set((req.body.categories as string[]).map((value) => value.trim()))];
+  if (categories.length === 0) {
+    res.status(400).json({ error: 'At least one project category is required.' });
+    return;
+  }
+  res.json(database.setProjectCategories(categories));
+});
+
 // GET /api/projects - list accessible projects
 projectsRouter.get('/', authenticate, (req: AuthenticatedRequest, res: Response) => {
   const user = req.user!;
@@ -75,6 +96,11 @@ projectsRouter.post('/', authenticate, (req: AuthenticatedRequest, res: Response
     res.status(400).json({ error: 'Project due date must be on or after its start date.' });
     return;
   }
+  const categories = database.getProjectCategories();
+  if (category !== undefined && (typeof category !== 'string' || !categories.includes(category))) {
+    res.status(400).json({ error: 'Choose a category from the available project categories.' });
+    return;
+  }
 
   const now = new Date().toISOString();
   const members: ProjectMember[] = [
@@ -104,7 +130,7 @@ projectsRouter.post('/', authenticate, (req: AuthenticatedRequest, res: Response
     startDate: startDate || now,
     dueDate: dueDate || new Date(Date.now() + 14 * 86400000).toISOString(),
     color: color || '#3B82F6',
-    category: category || 'General',
+    category: category || categories[0],
     createdAt: now,
     updatedAt: now,
   };
@@ -128,6 +154,11 @@ projectsRouter.patch('/:id', authenticate, (req: AuthenticatedRequest, res: Resp
 
   if (!project) {
     res.status(404).json({ error: 'Project not found' });
+    return;
+  }
+
+  if (req.body.category !== undefined && (typeof req.body.category !== 'string' || !database.getProjectCategories().includes(req.body.category))) {
+    res.status(400).json({ error: 'Choose a category from the available project categories.' });
     return;
   }
 

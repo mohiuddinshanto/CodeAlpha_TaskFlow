@@ -17,6 +17,7 @@ interface DatabaseSchema {
   comments: Comment[];
   notifications: Notification[];
   activities: Activity[];
+  categories: string[];
 }
 
 function stripMongoIds<T extends Document>(documents: WithId<T>[]): T[] {
@@ -32,6 +33,7 @@ let db: DatabaseSchema = {
   comments: [],
   notifications: [],
   activities: [],
+  categories: ['Product Development', 'Mobile UX', 'Engineering & Architecture', 'Security & Compliance', 'Growth & Marketing', 'Product'],
 };
 
 // MongoDB Native Driver connection handles
@@ -120,7 +122,11 @@ export async function connectMongo(): Promise<boolean> {
       comments,
       notifications,
       activities,
+      categories: Array.isArray(schemaMetadata?.categories)
+        ? [...new Set(schemaMetadata.categories.filter((value): value is string => typeof value === 'string' && value.trim().length > 0))]
+        : [...new Set(['Product Development', 'Mobile UX', 'Engineering & Architecture', 'Security & Compliance', 'Growth & Marketing', 'Product', ...projects.map((project) => project.category).filter((value): value is string => Boolean(value))])],
     };
+    await mongoDb.collection('metadata').updateOne({ id: 'taskflow' }, { $set: { categories: db.categories } }, { upsert: true });
       if (db.schemaVersion >= 2) {
         await Promise.all(db.users.map((user) => mongoDb!.collection('users').updateOne({ id: user.id }, { $set: user })));
       }
@@ -154,7 +160,7 @@ export function getDatabaseStatus() {
 }
 
 export async function initDatabase(): Promise<void> {
-  db = { schemaVersion: 2, users: [], projects: [], tasks: [], comments: [], notifications: [], activities: [] };
+  db = { schemaVersion: 2, users: [], projects: [], tasks: [], comments: [], notifications: [], activities: [], categories: ['Product Development', 'Mobile UX', 'Engineering & Architecture', 'Security & Compliance', 'Growth & Marketing', 'Product'] };
   await connectMongo();
 }
 
@@ -168,6 +174,12 @@ export async function closeMongo(): Promise<void> {
 }
 
 export const database = {
+  getProjectCategories: () => db.categories,
+  setProjectCategories: (categories: string[]) => {
+    db.categories = categories;
+    if (isMongoConnected && mongoDb) persistMongoWrite(mongoDb.collection('metadata').updateOne({ id: 'taskflow' }, { $set: { categories } }, { upsert: true }));
+    return db.categories;
+  },
   // Users
   getUsers: () => db.users,
   getUserById: (id: string) => db.users.find((u) => u.id === id),

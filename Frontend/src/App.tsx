@@ -47,6 +47,7 @@ export default function App() {
         if (refreshTimer) clearTimeout(refreshTimer);
         refreshTimer = setTimeout(() => {
           const state = useStore.getState();
+          void state.fetchProjectCategories();
           void state.fetchProjects();
           void state.fetchNotifications();
           void state.fetchDashboardStats();
