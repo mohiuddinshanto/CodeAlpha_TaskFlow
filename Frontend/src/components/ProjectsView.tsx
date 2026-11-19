@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Plus,
   Calendar,
@@ -6,6 +6,7 @@ import {
   Trash2,
   Edit2,
   ArrowRight,
+  UserPlus,
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { Avatar } from './Avatar';
@@ -20,11 +21,13 @@ export const ProjectsView: React.FC = () => {
     setActiveView,
     setNewProjectModalOpen,
     deleteProject,
+    addProjectMember,
     updateProject,
     changeProjectMemberRole,
     transferProjectOwnership,
     currentUser,
     allUsers,
+    projectCategories,
   } = useStore();
 
   const [search, setSearch] = useState('');
@@ -32,6 +35,7 @@ export const ProjectsView: React.FC = () => {
   const [projectToEdit, setProjectToEdit] = useState<Project | null>(null);
   const [memberToTransfer, setMemberToTransfer] = useState<{ project: Project; userId: string; name: string } | null>(null);
   const [isTransferring, setIsTransferring] = useState(false);
+  const [memberSelections, setMemberSelections] = useState<Record<string, string>>({});
 
   const filteredProjects = projects.filter(
     (p) =>
@@ -103,6 +107,7 @@ export const ProjectsView: React.FC = () => {
           const progress = calculateProjectProgress(projectTasks);
           const completedCount = projectTasks.filter((t) => t.status === 'completed').length;
           const canManage = currentUser?.role === 'admin' || proj.ownerId === currentUser?.id;
+          const canAddMembers = canManage || proj.members.some((member) => member.userId === currentUser?.id && member.role === 'admin');
 
           return (
             <div
@@ -234,6 +239,15 @@ export const ProjectsView: React.FC = () => {
                       </div>
                     );
                   })}
+                  {canAddMembers && (
+                    <div className="flex gap-2 pt-1">
+                      <select aria-label={`Choose a member for ${proj.name}`} value={memberSelections[proj.id] || ''} onChange={(event) => setMemberSelections({ ...memberSelections, [proj.id]: event.target.value })} className="min-w-0 flex-1 rounded border border-slate-200 bg-white px-2 py-1.5 text-[10px] dark:border-slate-700 dark:bg-slate-800">
+                        <option value="">Add a team member...</option>
+                        {allUsers.filter((user) => !proj.members.some((member) => member.userId === user.id)).map((user) => <option key={user.id} value={user.id}>{user.name} ({user.email})</option>)}
+                      </select>
+                      <button type="button" disabled={!memberSelections[proj.id]} onClick={async () => { const userId = memberSelections[proj.id]; if (userId && await addProjectMember(proj.id, userId)) setMemberSelections({ ...memberSelections, [proj.id]: '' }); }} className="shrink-0 rounded bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-700 disabled:opacity-50 dark:bg-blue-950/50 dark:text-blue-300"><UserPlus className="inline h-3 w-3 mr-1" />Add</button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Primary CTA */}
@@ -284,6 +298,7 @@ export const ProjectsView: React.FC = () => {
         <ProjectEditModal
           key={projectToEdit.id}
           project={projectToEdit}
+          categories={projectCategories}
           onClose={() => setProjectToEdit(null)}
           onSave={async (data) => {
             const saved = await updateProject(projectToEdit.id, data);
@@ -311,22 +326,28 @@ export const ProjectsView: React.FC = () => {
   );
 };
 
-function ProjectEditModal({ project, onClose, onSave }: {
+function ProjectEditModal({ project, categories, onClose, onSave }: {
   project: Project;
+  categories: string[];
   onClose: () => void;
   onSave: (data: Partial<Project>) => Promise<void>;
 }) {
   const [name, setName] = useState(project.name);
   const [description, setDescription] = useState(project.description || '');
+  const [category, setCategory] = useState(project.category || categories[0] || '');
   const [startDate, setStartDate] = useState(project.startDate.slice(0, 10));
   const [dueDate, setDueDate] = useState(project.dueDate.slice(0, 10));
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!category && categories.length > 0) setCategory(categories[0]);
+  }, [category, categories]);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!name.trim() || !startDate || !dueDate || dueDate < startDate) return;
     setSaving(true);
-    await onSave({ name: name.trim(), description, startDate: new Date(startDate).toISOString(), dueDate: new Date(dueDate).toISOString() });
+    await onSave({ name: name.trim(), description, category, startDate: new Date(startDate).toISOString(), dueDate: new Date(dueDate).toISOString() });
     setSaving(false);
   };
 
@@ -336,6 +357,7 @@ function ProjectEditModal({ project, onClose, onSave }: {
         <h2 className="text-lg font-bold">Edit project</h2>
         <label className="block text-sm">Project name<input required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} className="mt-1 w-full rounded border p-2 dark:bg-slate-800" /></label>
         <label className="block text-sm">Description<textarea maxLength={5000} value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1 w-full rounded border p-2 dark:bg-slate-800" /></label>
+        <label className="block text-sm">Category<select required value={category} onChange={(event) => setCategory(event.target.value)} className="mt-1 w-full rounded border p-2 dark:bg-slate-800">{category && !categories.includes(category) && <option value={category}>{category} (archived)</option>}{categories.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
         <div className="grid grid-cols-2 gap-3">
           <label className="block text-sm">Start date<input type="date" required value={startDate} onChange={(e) => setStartDate(e.target.value)} className="mt-1 w-full rounded border p-2 dark:bg-slate-800" /></label>
           <label className="block text-sm">Due date<input type="date" required min={startDate} value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="mt-1 w-full rounded border p-2 dark:bg-slate-800" /></label>
